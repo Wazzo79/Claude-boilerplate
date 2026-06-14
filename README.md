@@ -21,8 +21,106 @@ conversation.
 
 | Skill | What it's for |
 | --- | --- |
+| [`clarify-before-acting`](.claude/skills/clarify-before-acting/) | A **clarify-first** working method that forces clarifying questions before any planning or change work — turning every gap, default, or ambiguity into a question rather than an assumption, cross-examining the answers to kill contradictions, and getting explicit sign-off on a confirmed spec before touching anything. |
 | [`cqrs-ddd-tdd`](.claude/skills/cqrs-ddd-tdd/) | A test-first working method for adding or refactoring **server-side / backend** features in a codebase built on CQRS, Domain-Driven Design, the Repository pattern, and Dependency Injection. |
 | [`frontend-tdd-solid`](.claude/skills/frontend-tdd-solid/) | A test-first working method for adding or refactoring **frontend / UI** features in a component-based codebase (React, Next.js, React Native, Flutter, …), enforcing separation of presentation from logic, dependency on abstractions, unidirectional data flow, composition, accessibility, and SOLID. |
+
+---
+
+## `clarify-before-acting` — Clarify-first working method
+
+### What it does
+
+This skill is a **working method, not a code generator.** It governs *how Claude
+behaves at the very start of any planning or change request*: it does not move
+until it is certain what you want. Its default is to **ask, not assume.**
+
+The premise is your stated preference taken literally: **you would rather answer
+fifty questions than have a single assumption made on your behalf.** Every place
+Claude would otherwise "use its best judgment" or "pick a sensible default"
+becomes a question it owes you instead.
+
+### When it kicks in
+
+Claude reaches for this skill at the start of any request that involves planning
+or change — building a feature, designing a system, refactoring, fixing a bug,
+changing config, writing a migration, drafting a plan, choosing an approach. It
+engages **especially** when a request is short, broad, or sounds obvious, since
+"obvious" requests are where the costliest assumptions hide.
+
+It does **not** apply to pure information retrieval where there's nothing to
+decide. If a read-only question secretly contains a change request, the skill
+splits it: answer the question, then switch on for the change.
+
+### The method, in brief
+
+**Prime directive — assume nothing, ask everything.**
+
+> No plan is drafted and no change is made before every assumption it would rest
+> on has been turned into a question and answered by the user.
+
+The skill runs a round-by-round loop:
+
+1. **Intake** — restate the request and name its type (plan / build / change /
+   fix / config).
+2. **Enumerate the unknowns** — walk every dimension (scope and boundaries,
+   current vs. desired behavior, data and contracts, edge cases and failure
+   modes, constraints, dependencies, acceptance criteria) and list everything
+   the request leaves open. Anything not explicitly settled is unknown.
+3. **Ask in batches, in rounds** — use the `AskUserQuestion` tool (up to four
+   questions per call) to put questions to you, led by the ones that most change
+   the shape of the work, with concrete options and a recommended default. It
+   keeps opening rounds until the unknown backlog is empty — many short,
+   well-formed questions are the intended experience, not a failure mode.
+4. **Cross-examine every round** — replay the current understanding back in your
+   own terms, hunt for contradictions, ambiguity, and newly exposed gaps, and
+   feed each into the next round. Contradictions are always resolved by *you*,
+   never silently by Claude.
+5. **Converge on a confirmed spec** — only when no unknowns and no
+   contradictions remain: objective, in-scope, **explicit out-of-scope**,
+   behavior, constraints, acceptance criteria, and delivery expectations.
+6. **Sign-off gate** — present the spec and require an explicit confirmation; a
+   thumbs-up, an emoji, or silence is **not** sign-off, and any correction sends
+   it back to cross-examination.
+7. **Act or hand off** — only with the gate open does Claude act, or hand the
+   confirmed spec to the right implementation skill (e.g. `cqrs-ddd-tdd`,
+   `frontend-tdd-solid`) carrying **zero** open questions.
+
+If you tell it to stop asking and just proceed, it complies — but first states
+plainly which assumptions it is now making and the risk each carries, so the
+choice to skip ahead is yours and visible.
+
+### Definition of done
+
+Every decision the request left open was asked, not assumed; every contradiction
+was surfaced and resolved by you; a written spec with an explicit
+in-scope / out-of-scope boundary and acceptance criteria exists; and you have
+explicitly signed off on it. If Claude can name even one judgment call it made on
+your behalf, it isn't done — it turns that into a question and goes back.
+
+### Files
+
+```
+.claude/skills/clarify-before-acting/
+├── SKILL.md                        # Entry point: the prime directive and the ask→cross-examine→sign-off loop
+└── references/
+    ├── question-bank.md            # The dimensions to interrogate, with concrete questions to draw from
+    ├── cross-examination.md        # Replaying requirements back, detecting contradictions, confirming scope
+    └── workflow.md                 # The round-by-round loop, batching with AskUserQuestion, and the sign-off gate
+```
+
+Claude reads `SKILL.md` first and pulls in a reference file only when it reaches
+the step that needs it:
+
+- **`question-bank.md`** — the checklist of dimensions (problem & intent, scope,
+  current state, desired behavior, data & contracts, edge cases, constraints,
+  dependencies, acceptance, delivery) plus examples of turning a tempting
+  default into a question.
+- **`cross-examination.md`** — how to replay understanding, hunt contradictions,
+  ambiguity, gaps, and changes of mind, and how to know the cross-examination is
+  finished.
+- **`workflow.md`** — the operational loop, how to run rounds with
+  `AskUserQuestion`, the spec format, and the sign-off gate.
 
 ---
 
