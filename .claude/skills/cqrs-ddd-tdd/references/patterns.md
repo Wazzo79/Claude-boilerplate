@@ -19,19 +19,82 @@ interface CommandHandler<TCommand> {
 }
 
 CreateOrderHandler implements CommandHandler<CreateOrder> {
-    constructor(orderRepository, customerRepository, clock)   // injected
+    constructor(orderRepository, customerRepository, auditLog, clock)   // injected
 
     handle(command):
         customer = customerRepository.getById(command.customerId)   // by id
         order = Order.place(customer, command.lines, clock.now())   // domain decides
         orderRepository.add(order)                                  // persist intent
-        // emit event / audit via injected dispatcher if that's the convention
+        auditLog.record(auditFor(command, order, clock.now()))      // see "Audit trail"
 }
 ```
 
 Invariants ("an order over the credit limit is rejected", "amount must be in
 range") live in `Order.place(...)`, not in the handler. The handler orchestrates;
 the aggregate decides.
+
+## Audit trail (write side)
+
+Every command that successfully modifies state records one audit entry. Auditing
+sits behind its own abstraction (an `AuditRepository`/`AuditLog`), injected like
+any other collaborator, and its write enlists in the **same unit of work** as the
+command so the two commit or roll back together — a change that lands without its
+audit, or an audit without its change, is a defect.
+
+```
+record AuditEntry {
+    timestamp       // UTC instant the change committed
+    userId?         // who acted — null for system/cron-initiated commands
+    commandName     // e.g. "UpdateOrderShippingAddress"
+    commandPayload  // the command as JSON, SANITIZED (see below)
+    message         // human-readable description of what changed
+}
+
+interface AuditLog {
+    record(entry)        // enlisted in the command's unit of work
+}
+```
+
+Producing each field:
+
+- **timestamp** — from the injected `clock`, never `now()` reached for in place,
+  so tests can assert it deterministically. Store in UTC.
+- **userId** — from the injected caller/identity context. It is *optional by
+  design*: a command dispatched by a scheduler, migration, or system process has
+  no user, and `null` is the correct, expected value — do not invent a sentinel
+  or fail the command for lack of a user.
+- **commandPayload** — serialize the command to JSON, then **strip heavy binary
+  content**: byte arrays, file/stream contents, base64 blobs, and `data:` URIs.
+  Replace each with a small placeholder (e.g. `"<binary 482 KB omitted>"`) rather
+  than dropping the key, so the shape stays legible without bloating the store.
+  Do this with one shared sanitizer, not ad-hoc per handler.
+- **message** — describe the actual change, in the ubiquitous language:
+  - **Create / Delete** → `ALL` is sufficient; the whole aggregate came into or
+    left existence, so field-level detail would be noise.
+  - **Update** → name the fields that changed and what they became, e.g.
+    `status: Pending → Shipped; carrier: null → "DHL"`. Capturing old → new is
+    preferred; at minimum list which fields changed to what. Never a blanket
+    `"order updated"`.
+
+Where the change-set for an update comes from is a real design choice: either the
+aggregate exposes the applied changes (e.g. domain events it raised, or a diff it
+computed against its prior state), or the handler compares the loaded aggregate to
+the command. Prefer letting the aggregate report its own changes — it already
+knows them and keeps the handler thin. A blanket "serialize before, serialize
+after, diff the JSON" works as a fallback but tends to leak persistence shape into
+the message, so reach for it only when the aggregate can't report changes itself.
+
+Auditing is a cross-cutting concern: where the project already decorates the
+command pipeline (commit-on-success, validation, logging), prefer a **decorator/
+middleware** that records the audit around every command handler over copy-pasting
+the call into each one. The create/delete vs. update message detail is the part a
+generic decorator can't synthesize alone — feed it the aggregate's reported
+changes so the decorator stays generic while the message stays specific.
+
+Keep the `AuditLog` interface above the repository line and store-agnostic; its
+concrete implementation (which table/collection, how the JSON column/field is
+typed, indexing by user or timestamp) lives below the line like any other
+repository — see "Database-agnostic boundary".
 
 ## Query (read side)
 

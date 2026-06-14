@@ -115,12 +115,28 @@ them to every slice.
    names from the ubiquitous language, small functions, no dead/commented code,
    no duplicated logic, guard clauses over deep nesting.
 
+7. **Audit every command — record each state modification.**
+   Every command that succeeds writes one row to an audit table/collection
+   behind its own repository abstraction. The audit record carries: a UTC
+   **timestamp**; the **user** who performed the change (nullable — a
+   system/cron-initiated command has no user); the **command payload as JSON**,
+   with binary blobs and base64/data-URI strings stripped before recording so
+   the audit store does not balloon; and a human-readable **message** describing
+   what changed — for create and delete, `ALL` is sufficient (the whole
+   aggregate came or went); for update, name the fields that changed and their
+   new (and ideally old) values, never a blanket "updated". Queries are never
+   audited — they don't modify state. The audit write is part of the command's
+   unit of work, so it commits or rolls back with the change it describes. See
+   the "Audit trail" section of `references/patterns.md`.
+
 ## How to run a piece of work
 
 1. Orient (Step 0).
 2. For each behavior slice, run the Red→Green→Refactor loop in
    `references/workflow.md`, including a test that asserts the query projection
-   exposes **only** the intended fields.
+   exposes **only** the intended fields, and — for command slices — a test that
+   asserts the audit record is written with the right timestamp, user, sanitized
+   payload, and change message.
 3. Wire DI exactly as neighboring features are wired.
 4. Run the full test suite — it must be green, with your new tests demonstrably
    covering the behavior.
@@ -132,6 +148,7 @@ them to every slice.
 Done is: the suite is green; the new behavior is covered by tests that would
 fail if the behavior regressed; no entity or full row crosses the query
 boundary; every ViewModel carries only what its consumer needs; no datastore
-specifics leaked above the repository; and the checklist passes. Report results
-honestly — if a step was skipped or a test is red, say so plainly with the
-output.
+specifics leaked above the repository; every state-modifying command writes a
+sanitized audit record describing what changed; and the checklist passes. Report
+results honestly — if a step was skipped or a test is red, say so plainly with
+the output.

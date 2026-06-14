@@ -51,6 +51,23 @@ checkable. If one fails, fix it — do not report success with a known gap.
 - [ ] A test asserts the projection's minimality (intended fields present,
       entity-only fields absent).
 
+## Audit trail
+
+- [ ] Every state-modifying command writes exactly one audit record on success;
+      queries write none.
+- [ ] The audit write enlists in the command's unit of work — it commits or rolls
+      back with the change it describes (proven by a test on the failure path).
+- [ ] The record carries a UTC timestamp from the injected clock, the acting
+      userId (and `null` is accepted for system/cron commands, with a test), the
+      command JSON, and a change message.
+- [ ] The serialized command payload is sanitized — binary blobs and base64/
+      data-URI strings are replaced with placeholders, via one shared sanitizer.
+- [ ] The message describes the real change: `ALL` for create/delete; the
+      changed fields and their new (ideally old → new) values for update — never a
+      blanket "updated".
+- [ ] The `AuditLog` interface stays store-agnostic; only its implementation knows
+      the table/collection and JSON storage details.
+
 ## Database-agnostic boundary
 
 - [ ] No store-specific types, attributes, or query operators leak into

@@ -70,11 +70,31 @@ expose **only** the fields that read needs.
 
 - Assert the post-state through the fake repository (entity added/updated with
   the expected values), not through internal calls.
-- Assert required side effects via recording fakes (e.g. an audit/event was
-  emitted with the expected payload), and assert the *absence* of side effects
-  on the rejection paths.
+- Assert required side effects via recording fakes, and assert the *absence* of
+  side effects on the rejection paths.
 - Assert that invalid commands are rejected at the domain boundary with the
   expected error, before any persistence happens.
+
+### Audit assertions (every command)
+
+A successful command must leave exactly one audit record. Drive these with a
+recording fake `AuditLog`:
+
+- **Timestamp** — equals the fixed clock's value (this is why the clock is
+  injected, not called in place).
+- **User** — equals the supplied identity; and write a sibling test where the
+  command is system/cron-initiated and assert the recorded user is `null`,
+  proving the optional path.
+- **Payload sanitization** — for a command carrying a binary/base64 field, assert
+  the recorded JSON has the blob replaced by the placeholder, and that the
+  non-binary fields survive intact.
+- **Message** — assert `ALL` for a create or delete; for an update, assert the
+  message names the changed fields and their new (ideally old → new) values, and
+  does *not* mention unchanged fields.
+- **Rejection paths** — assert **no** audit record is written when the command is
+  rejected at the domain boundary, alongside the absence of the state change.
+- **Atomicity** — where the unit of work can be made to fail on commit, assert
+  the audit record does not survive a rolled-back change (and vice versa).
 
 ## Retrofitting onto legacy code
 
