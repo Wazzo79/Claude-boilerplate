@@ -3,10 +3,44 @@
 Starter skills for building better code with [Claude Code](https://code.claude.com).
 
 This repository ships reusable [Agent Skills](https://code.claude.com/docs/en/skills)
-under [`.claude/skills/`](.claude/skills/). When you open this repo in Claude Code
-(CLI, desktop, web, or an IDE extension), Claude automatically discovers these
-skills and invokes the right one when your request matches its description — no
-extra setup required.
+under [`.claude/skills/`](.claude/skills/) plus a boilerplate
+[`CLAUDE.md`](CLAUDE.md) global working agreement. When you open this repo in
+Claude Code (CLI, desktop, web, or an IDE extension), Claude automatically
+discovers these skills and invokes the right one when your request matches its
+description — no extra setup required.
+
+## `CLAUDE.md` — the global working agreement
+
+Alongside the skills, the repo ships a boilerplate [`CLAUDE.md`](CLAUDE.md): a
+short, stack-agnostic working agreement that Claude reads on every turn. Where a
+skill carries deep, on-demand guidance for one kind of task, `CLAUDE.md` sets the
+always-on defaults for *how* Claude works in any repo.
+
+It is intentionally tight (~40 lines) — a `CLAUDE.md` costs prompt tokens every
+turn, so it stays high-signal and is meant to be edited as a living document. It
+blends two schools of thought:
+
+- **Boris Cherny's CLAUDE.md craft** — brevity, project command/style/etiquette
+  placeholders, and sparing use of strong directives (`IMPORTANT` / `YOU MUST`)
+  reserved for the few non-negotiables.
+- **Andrej Karpathy's coding philosophy** — keep code simple and legible, treat
+  the LLM as a capable but fallible collaborator (verify, don't trust blindly),
+  understand before changing, and move in small reversible steps.
+
+It also **routes to the skills in this repo**: ambiguous requests →
+`clarify-before-acting`, backend work → `cqrs-ddd-tdd`, frontend work →
+`frontend-tdd-solid`, API auth/security → `api-security-pentest`.
+
+**Using it.** It applies automatically when you open this repo. To make it your
+machine-wide default for every project, copy it to your user config:
+
+```bash
+cp CLAUDE.md ~/.claude/CLAUDE.md
+```
+
+Then fill in the **Project conventions** block (build/test/lint commands, code
+style, repo etiquette) per repo — either in that global file or in a
+project-level `CLAUDE.md`.
 
 ## What's a skill?
 
