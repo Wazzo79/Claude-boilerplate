@@ -22,6 +22,7 @@ conversation.
 | Skill | What it's for |
 | --- | --- |
 | [`cqrs-ddd-tdd`](.claude/skills/cqrs-ddd-tdd/) | A test-first working method for adding or refactoring **server-side / backend** features in a codebase built on CQRS, Domain-Driven Design, the Repository pattern, and Dependency Injection. |
+| [`frontend-tdd-solid`](.claude/skills/frontend-tdd-solid/) | A test-first working method for adding or refactoring **frontend / UI** features in a component-based codebase (React, Next.js, React Native, Flutter, …), enforcing separation of presentation from logic, dependency on abstractions, unidirectional data flow, composition, accessibility, and SOLID. |
 
 ---
 
@@ -125,6 +126,114 @@ step that needs it:
 - **`review-checklist.md`** — a Definition-of-Done checklist (Tests, CQRS, DDD,
   Repository + DI, Projection pathway, Database-agnostic boundary, SOLID + clean
   code) that Claude self-applies before declaring work done.
+
+---
+
+## `frontend-tdd-solid` — Frontend TDD + SOLID feature strategy
+
+### What it does
+
+This skill is the front-end counterpart to `cqrs-ddd-tdd`. It is a **working
+method, not a code generator.** It tells Claude *how* to approach a unit of UI work
+so the result is:
+
+- **Correct** — proven by tests written first (TDD) that exercise the UI the way a
+  user would,
+- **Well-factored** — presentation separated from logic, SOLID and clean code
+  throughout, and
+- **Consistent** — it matches the framework the project already uses, rather than
+  importing a new one.
+
+It is deliberately **framework-agnostic (as far as possible).** Rather than
+imposing a new architecture, the skill instructs Claude to detect and mirror the
+target stack's conventions — its component style, state approach, test runner,
+naming, folder layout, and DI/provider mechanism — across **React, Next.js, React
+Native, Flutter**, or another component-based UI stack.
+
+### When it kicks in
+
+Claude reaches for this skill when you ask it to work on frontend code such as:
+
+- building a component, screen, or widget,
+- writing a custom hook, view-model, controller, or bloc,
+- adding a form, a data-fetching boundary, or a provider, or
+- refactoring a "fat" component that mixes rendering, state, and I/O.
+
+If the codebase has **no** separation between view and logic, the skill tells
+Claude *not* to impose the full layering on a one-line change — instead it flags
+the mismatch and proposes the smallest honest step.
+
+### The method, in brief
+
+**Step 0 — Orient before touching anything.** Detect the stack (framework, language,
+component style, state approach, test runner), run the existing suite to establish a
+green baseline, find the existing seams (a presentational component, a logic unit,
+the data-access boundary, the DI/provider mechanism, routing), and locate the right
+altitude for the new code.
+
+**Prime directive — TDD from the user's perspective.** No production behavior is
+written before a test that fails for the right reason exists. Tests query the UI the
+way a user finds things (accessible role, label, visible text) and drive it the way
+a user acts (click, type, submit) — never asserting on internal state, private
+methods, CSS classes, or tree structure. Every behavior slice runs the loop:
+
+> **Red** (write a failing test that states the behavior as a user experiences it) →
+> **Green** (the minimum code to pass) → **Refactor** (clean it up while the test
+> holds the behavior fixed).
+
+**The six non-negotiables** applied to every slice:
+
+1. **Separate presentation from logic** — presentational components are (near-)pure
+   functions of their inputs that render and emit events; non-trivial state and
+   orchestration live in a hook/view-model/controller/bloc that is testable without
+   rendering.
+2. **Depend on abstractions — ports & DI at the edges** — components and logic units
+   never import a concrete API client, SDK, storage, clock, or platform API; those
+   come through a narrow port supplied from outside, so tests can inject fakes.
+3. **Unidirectional data flow & single source of truth** — state flows down, events
+   flow up; each piece of state has one owner; derive don't duplicate; server state
+   is owned by the data layer.
+4. **Pure render, effects at the edges** — rendering is a pure function of props and
+   state; effects are isolated to lifecycle boundaries and driven through injected
+   ports.
+5. **Composition over conditionals** — extend via composition, slots, render-props,
+   or new variants rather than growing a god-component of boolean flags; every
+   variant honors the same contract.
+6. **SOLID + clean code + accessibility** — single responsibility, narrow
+   interfaces, substitutable variants, intention-revealing names, and semantic,
+   accessible, keyboard-operable UI (which is also what makes behavior-level testing
+   possible).
+
+**Definition of done.** The suite is green; new behavior is covered by tests that
+drive the UI as a user would and would fail on regression; presentation is separated
+from logic; no component touches a concrete API/SDK/platform directly; data flows one
+way from a single source of truth; render is pure with effects at the edges; the UI
+is accessible; and the review checklist passes. Results are reported honestly.
+
+### Files
+
+```
+.claude/skills/frontend-tdd-solid/
+├── SKILL.md                        # Entry point: the method and the six non-negotiables
+└── references/
+    ├── workflow.md                 # The step-by-step Red→Green→Refactor TDD loop per slice
+    ├── patterns.md                 # Framework-neutral shape of each UI building block
+    └── review-checklist.md         # The Definition-of-Done gate Claude self-applies
+```
+
+Claude reads `SKILL.md` first and pulls in a reference file only when it reaches the
+step that needs it:
+
+- **`workflow.md`** — the TDD loop to run for each slice, with presentation-slice and
+  logic-slice specifics and a recipe for refactoring a fat component into a view + a
+  logic unit + ports.
+- **`patterns.md`** — pseudo-code showing the *shape and intent* of presentational
+  components, logic units (hook/view-model/controller/bloc), ports, adapters,
+  unidirectional data flow, and composition, plus a SOLID mapping for the frontend.
+- **`review-checklist.md`** — a Definition-of-Done checklist (Tests, Separation of
+  presentation/logic, Ports & DI, Data flow, Pure render & effects, Composition &
+  SOLID, Accessibility & clean code) that Claude self-applies before declaring work
+  done.
 
 ---
 
